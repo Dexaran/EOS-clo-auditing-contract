@@ -9,7 +9,8 @@ class [[eosio::contract("example")]] example_contract : public eosio::contract {
 
 public:
   using contract::contract;
-  uint64_t autodelay = 60;
+  //uint32_t standard_delay = 24 * 60 * 60; // 1 day in seconds
+  uint32_t standard_delay = 180; // 3 minute in seconds for testing purpose only
   uint64_t request_index = 0;
   
   example_contract(name receiver, name code,  datastream<const char*> ds): contract(receiver, code, ds) {}
@@ -20,7 +21,7 @@ public:
     name username;
     uint64_t CPU;
     uint64_t NET;
-    uint64_t time;
+    uint32_t time;
 
     uint64_t primary_key() const { return username.value; }
 
@@ -30,19 +31,28 @@ public:
   typedef eosio::multi_index<name("request"), request> requests;
 
   [[eosio::action]]
-  void ask(name _user, uint64_t _CPU, uint64_t _NET, uint64_t _timeframe) {
+  void ask(name _user, uint64_t _CPU, uint64_t _NET) {
 
     multiauth(_user);
 
-    /*requests reqest_instance(_code, _code.value);
+    requests reqest_instance(_code, _code.value);
     auto iterator = reqest_instance.find(_user.value);   
     if( iterator == reqest_instance.end() )
     {
-      delegate_resources( _user, _CPU, _NET, _timeframe );
+      reqest_instance.emplace(_user, [&]( auto& row ) {
+        row.username = _user;
+        row.CPU = _CPU;
+        row.NET = _NET;
+        row.time = now() + standard_delay;
+      });
+      delegate_resources( _user, _CPU, _NET, now() + standard_delay);
+
+      auto str = std::to_string(now() + standard_delay);
+      printmsg(_user, "delegated CPU and NET until " + str);
     }
     else {
       return;
-    }*/
+    }
 
     auto timestamp = now();
   }
@@ -89,7 +99,7 @@ void multiauth(name _user)
 
 void undelegate_resources(name _user){
   eosio::transaction t{};
-  t.delay_sec = autodelay; // example - 1 minute delay for the tx
+  t.delay_sec = standard_delay; // example - 1 minute delay for the tx
 
   uint64_t amount = 1;
   asset quantity(amount, symbol("EOS",4));
@@ -105,14 +115,26 @@ void undelegate_resources(name _user){
 
 void delegate_resources(name _user, uint64_t _CPU, uint64_t _NET, uint64_t _timeframe){
 
-  asset CPU_to_delegate(_CPU, symbol("EOS",4));
-  asset NET_to_delegate(_NET, symbol("EOS",4));
-    action(
+  asset CPU_delegated(_CPU, symbol("EOS",4));
+  asset NET_delegated(_NET, symbol("EOS",4));
+  action(
+    permission_level(name(get_self()), name("active")), 
+    name("eosio"),
+    name("delegatebw"), 
+    std::tuple(get_self(), _user, CPU_delegated, NET_delegated, false)
+  ).send();
+
+  eosio::transaction t{};
+  t.delay_sec = standard_delay;
+
+  t.actions.emplace_back(
       permission_level(name(get_self()), name("active")), 
       name("eosio"),
-      name("delegatebw"), 
-      std::tuple(get_self(), _user, CPU_to_delegate, NET_to_delegate, false)
-    ).send();
+      name("undelegatebw"), 
+      std::tuple(get_self(), _user, CPU_delegated, NET_delegated, false));
+
+    t.send(now(), name(get_self()));
+
   };
 };
 
