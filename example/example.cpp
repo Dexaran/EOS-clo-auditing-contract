@@ -27,23 +27,24 @@ public:
     EOSLIB_SERIALIZE( request, (username)(CPU)(NET)(time))
   };
 
-  typedef eosio::multi_index<"request"_n, request> requests;
+  typedef eosio::multi_index<name("request"), request> requests;
 
   [[eosio::action]]
   void ask(name _user, uint64_t _CPU, uint64_t _NET, uint64_t _timeframe) {
 
     multiauth(_user);
 
-    requests reqest_instance(_code, _code.value);
+    /*requests reqest_instance(_code, _code.value);
     auto iterator = reqest_instance.find(_user.value);   
     if( iterator == reqest_instance.end() )
     {
-      //The user isn't in the table
+      delegate_resources( _user, _CPU, _NET, _timeframe );
     }
     else {
-      //The user is in the table
-    }
-    delegate_resources( _user, _CPU, _NET, _timeframe );
+      return;
+    }*/
+
+    auto timestamp = now();
   }
 
   [[eosio::action]]
@@ -52,6 +53,19 @@ public:
     multiauth(_user);
 
     undelegate_resources( _user );
+  }
+
+  [[eosio::action]]
+  void printmsg(name _user, std::string _msg) {
+    require_auth(get_self());
+    require_recipient(_user);
+
+    action(
+      permission_level(name(get_self()), name("active")),
+      get_self(),
+      name("notify"),
+      std::make_tuple(_user, _msg)
+    ).send();
   }
 
 private:
