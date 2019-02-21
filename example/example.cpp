@@ -46,9 +46,7 @@ public:
         row.time = now() + standard_delay;
       });
       delegate_resources( _user, _CPU, _NET, now() + standard_delay);
-
-      auto str = std::to_string(now() + standard_delay);
-      printmsg(_user, "delegated CPU and NET until " + str);
+      printmsg(_user, "delegated CPU and NET");
     }
     else {
       return;
@@ -73,7 +71,7 @@ public:
       permission_level(name(get_self()), name("active")),
       get_self(),
       name("notify"),
-      std::make_tuple(_user, _msg)
+      std::make_tuple(_user, _msg.to_string())
     ).send();
   }
 
