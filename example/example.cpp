@@ -67,7 +67,6 @@ public:
 
   [[eosio::action]]
   void printmsg(name _user, std::string _msg) {
-    require_auth(get_self());
     require_recipient(_user);
 
     action(
@@ -77,6 +76,16 @@ public:
       std::make_tuple(_user, _msg)
     ).send();
   }
+
+  [[eosio::action]]
+  void eraserecord(name _user){
+    require_auth(get_self());
+    requests reqest_instance(_code, _code.value);
+    auto iterator = reqest_instance.find(_user.value);
+    eosio_assert(iterator != reqest_instance.end(), "Record does not exist");
+    reqest_instance.erase(iterator);
+  };
+
 
 private:
 
@@ -99,7 +108,7 @@ void multiauth(name _user)
 
 void undelegate_resources(name _user){
   eosio::transaction t{};
-  t.delay_sec = standard_delay; // example - 1 minute delay for the tx
+  t.delay_sec = standard_delay;
 
   uint64_t amount = 1;
   asset quantity(amount, symbol("EOS",4));
@@ -110,7 +119,7 @@ void undelegate_resources(name _user){
       name("undelegatebw"), 
       std::tuple(get_self(), _user, quantity, quantity, false));
 
-    t.send(now(), name(get_self())); // Send the transaction with some ID derived from the memo
+    t.send(now(), name(get_self()));
   };
 
 void delegate_resources(name _user, uint64_t _CPU, uint64_t _NET, uint64_t _timeframe){
@@ -121,21 +130,32 @@ void delegate_resources(name _user, uint64_t _CPU, uint64_t _NET, uint64_t _time
     permission_level(name(get_self()), name("active")), 
     name("eosio"),
     name("delegatebw"), 
-    std::tuple(get_self(), _user, CPU_delegated, NET_delegated, false)
+    std::tuple(get_self(), _user, NET_delegated, CPU_delegated, false)
   ).send();
 
-  eosio::transaction t{};
-  t.delay_sec = standard_delay;
+  eosio::transaction tx{};
+  tx.delay_sec = standard_delay;
 
-  t.actions.emplace_back(
+  tx.actions.emplace_back(
       permission_level(name(get_self()), name("active")), 
       name("eosio"),
       name("undelegatebw"), 
-      std::tuple(get_self(), _user, CPU_delegated, NET_delegated, false));
+      std::tuple(get_self(), _user, NET_delegated, CPU_delegated, false));
 
-    t.send(now(), name(get_self()));
+  tx.actions.emplace_back(
+      permission_level(name(get_self()), name("active")),
+      get_self(),
+      name("notify"),
+      std::make_tuple(_user, "deferred transaction: automated undelegation of bandwidth in 3 minutes"));
 
+  tx.actions.emplace_back(
+      permission_level(name(get_self()), name("active")),
+      get_self(),
+      name("eraserecord"),
+      std::make_tuple(_user));
+
+  tx.send(now(), name(get_self()));
   };
 };
 
-EOSIO_DISPATCH( example_contract, (ask)(cancel) )
+EOSIO_DISPATCH( example_contract, (ask)(cancel)(eraserecord) )
