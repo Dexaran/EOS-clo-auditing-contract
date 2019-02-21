@@ -10,7 +10,7 @@ IMPORTANT: Relevant for EOS version 1.6.x
 
 NOTE: do not forget to grant your account a `code` permission first:
 
-`cleos -u https://api.eosdetroit.io:443 set account permission walletzzzzzz active --add-code`
+`cleos -u https://api.eosdetroit.io:443 set account permission <your_account> active --add-code`
 
 `cleos -u https://api.eosdetroit.io:443 set contract <your_account> '/home/user_name/folder_name/example/'`
 
