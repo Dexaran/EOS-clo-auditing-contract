@@ -10,27 +10,39 @@ class [[eosio::contract("example")]] example_contract : public eosio::contract {
 public:
   using contract::contract;
   uint64_t autodelay = 60;
+  uint64_t request_index = 0;
   
   example_contract(name receiver, name code,  datastream<const char*> ds): contract(receiver, code, ds) {}
 
 
-  struct Request {
-    uint64_t id;
-    name name;
+  struct [[eosio::table]] request {
+    //uint64_t id;
+    name username;
     uint64_t CPU;
     uint64_t NET;
     uint64_t time;
 
-    uint64_t primary_key() const { return id; }
+    uint64_t primary_key() const { return username.value; }
 
-    EOSLIB_SERIALIZE( Request, (name)(CPU)(NET)(time))
+    EOSLIB_SERIALIZE( request, (username)(CPU)(NET)(time))
   };
+
+  typedef eosio::multi_index<"request"_n, request> requests;
 
   [[eosio::action]]
   void ask(name _user, uint64_t _CPU, uint64_t _NET, uint64_t _timeframe) {
 
     multiauth(_user);
-    
+
+    requests reqest_instance(_code, _code.value);
+    auto iterator = reqest_instance.find(_user.value);   
+    if( iterator == reqest_instance.end() )
+    {
+      //The user isn't in the table
+    }
+    else {
+      //The user is in the table
+    }
     delegate_resources( _user, _CPU, _NET, _timeframe );
   }
 
