@@ -13,6 +13,19 @@ public:
   
   example_contract(name receiver, name code,  datastream<const char*> ds): contract(receiver, code, ds) {}
 
+
+  struct Request {
+    uint64_t id;
+    name name;
+    uint64_t CPU;
+    uint64_t NET;
+    uint64_t time;
+
+    uint64_t primary_key() const { return id; }
+
+    EOSLIB_SERIALIZE( Request, (name)(CPU)(NET)(time))
+  };
+
   [[eosio::action]]
   void ask(name _user, uint64_t _CPU, uint64_t _NET, uint64_t _timeframe) {
 
