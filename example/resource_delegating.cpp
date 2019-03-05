@@ -10,7 +10,7 @@ class [[eosio::contract("resource_delegating")]] example_contract : public eosio
 public:
   using contract::contract;
   uint64_t autodelay = 120;
-  uint64_t counter = 0;
+  uint64_t max_amount = 1000; // 0,1 EOS
 
  struct [[eosio::table]] request {
     name username;
@@ -26,9 +26,7 @@ typedef eosio::multi_index<name("request"), request> requests;
 
   [[eosio::action]]
   void ask(name _user, uint64_t _CPU, uint64_t _NET) {
-
-    multiauth(_user);
-
+    eosio_assert(_CPU + _NET < max_amount, "Maximal allowed delegation exceeded");
     requests reqest_instance(_code, _code.value);
     auto iterator = reqest_instance.find(0);   
     if( iterator == reqest_instance.end() )
@@ -47,7 +45,6 @@ typedef eosio::multi_index<name("request"), request> requests;
 
   [[eosio::action]]
   void notify(name _user, std::string msg) {
-    require_auth(get_self());
     require_recipient(_user);
   }
 
@@ -64,23 +61,6 @@ typedef eosio::multi_index<name("request"), request> requests;
 
 private:
 
-// Bad practice of multiauth implementation.
-void multiauth(name _user)
-{
-    if (_user == name("dexaraniiznx"))
-    {
-      require_auth(name("dexaraniiznx"));
-    }
-    else if (_user == name("walletzzzzzz"))
-    {
-      require_auth(name("walletzzzzzz"));
-    }
-    else
-    {
-      require_auth(name(get_self()));
-    }
-};
-
 void printmsg(name user, std::string _msg) {
   action(
     permission_level(name(get_self()), name("active")),
@@ -92,7 +72,7 @@ void printmsg(name user, std::string _msg) {
 
 void undelegate_resources(name _user, uint64_t _CPU, uint64_t _NET){
   eosio::transaction t{};
-  t.delay_sec = autodelay; // example - 1 minute delay for the tx
+  t.delay_sec = autodelay;
 
   asset CPU_delegated(_CPU, symbol("EOS",4));
   asset NET_delegated(_NET, symbol("EOS",4));
@@ -109,7 +89,7 @@ void undelegate_resources(name _user, uint64_t _CPU, uint64_t _NET){
       name("onupdate"), 
       std::tuple(get_self()));
 
-    t.send(now(), name(get_self())); // Send the transaction with some ID derived from the memo
+    t.send(now(), name(get_self()));
   };
 
 void delegate_resources(name _user, uint64_t _CPU, uint64_t _NET){
@@ -122,11 +102,10 @@ void delegate_resources(name _user, uint64_t _CPU, uint64_t _NET){
       name("delegatebw"), 
       std::tuple(get_self(), _user, CPU_to_delegate, NET_to_delegate, false)
     ).send();
-    counter++;
 
     undelegate_resources(_user, _CPU, _NET);
 
   };
 };
 
-EOSIO_DISPATCH( example_contract, (ask)(notify)(onupdate)(getcounter) )
+EOSIO_DISPATCH( example_contract, (ask)(notify)(onupdate) )
